@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDPStream Pro – Multimedia Streaming over UDP</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        .box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 900px;
+            text-align: center;
+        }
+        h1 { margin: 0 0 10px 0; color: #333; }
+        p { margin: 5px 0 20px 0; color: #555; }
+        select, button {
+            padding: 15px;
+            font-size: 18px;
+            margin: 12px 0;
+            width: 100%;
+            border-radius: 10px;
+            border: none;
+        }
+        select { background: #f8f9fa; }
+        button {
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover { background: #5a6fd8; }
+        progress {
+            width: 100%;
+            height: 28px;
+            margin: 20px 0;
+            border-radius: 14px;
+        }
+        #status {
+            font-weight: bold;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        #mediaContainer {
+            margin-top: 25px;
+        }
+        video, audio {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+<div class="box">
+    <h1>UDPStream</h1>
+    <p>Real-time Multimedia Streaming using Connectionless Sockets (UDP)<br>
+       <small>Progressive playback while downloading – 1000~2000 bytes random chunks</small>
+    </p>
+
+    <select id="fileSelect">
+        <option value="">← Select a file to stream</option>
+        {% for file in files %}
+            <option value="{{ file }}">{{ file }}</option>
+        {% endfor %}
+    </select>
+
+    <button onclick="startStreaming()">Start Streaming</button>
+
+    <progress value="0" max="100" id="progressBar"></progress>
+    <div id="status">Ready</div>
+
+    <div id="mediaContainer">
+        <!-- Video or Audio player will appear here automatically -->
+    </div>
+</div>
+
+<script>
+function startStreaming() {
+    const selectedFile = document.getElementById("fileSelect").value;
+    if (!selectedFile) {
+        alert("Please select a file first!");
+        return;
+    }
+
+    const container = document.getElementById("mediaContainer");
+    const status = document.getElementById("status");
+    const progressBar = document.getElementById("progressBar");
+
+    // Clear previous player
+    container.innerHTML = "";
+    progressBar.value = 0;
+    status.textContent = "Connecting & Buffering...";
+
+    // Create appropriate media element
+    let media;
+    if (selectedFile.toLowerCase().endsWith('.mp3') || 
+        selectedFile.toLowerCase().endsWith('.wav') || 
+        selectedFile.toLowerCase().endsWith('.ogg')) {
+        media = document.createElement('audio');
+    } else {
+        media = document.createElement('video');
+    }
+
+    media.controls = true;
+    media.autoplay = true;
+    media.style.width = "100%";
+    container.appendChild(media);
+
+    // Set source → this triggers the streaming from server (chunked UDP simulation)
+    media.src = "/stream/" + selectedFile;
+
+    // Fake smooth progress bar (যেহেতু streaming, actual progress দেখানো একটু ট্রিকি)
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 6 + 2;
+        if (progress > 98) progress = 98;
+        progressBar.value = progress;
+
+        if (progress > 20) status.textContent = "Playing – Still Downloading...";
+        if (progress > 90) {
+            status.textContent = "Almost Complete!";
+            clearInterval(interval);
+        }
+    }, 500);
+
+    // When streaming really ends
+    media.addEventListener("ended", () => {
+        progressBar.value = 100;
+        status.textContent = "Streaming Completed Successfully!";
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>UDPStream - Real-time Multimedia Streaming</title>
+    <style>
+        body { font-family: Arial; text-align: center; background: #f0f2f5; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        video, audio { width: 100%; max-width: 700px; margin: 20px 0; border: 3px solid #333; border-radius: 10px; }
+        select, button { padding: 12px; font-size: 16px; margin: 10px; }
+        button { background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #progress { width: 100%; height: 20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>UDPStream</h1>
+    <p>Real-time Multimedia Streaming over UDP</p>
+
+    <select id="fileSelect">
+        {% for file in files %}
+            <option value="{{ file }}">{{ file }}</option>
+        {% endfor %}
+    </select>
+    <br>
+    <button onclick="startStreaming()">Start Streaming</button>
+
+    <div id="playerContainer">
+        <video id="videoPlayer" controls autoplay></video>
+    </div>
+
+    <progress id="progress" value="0" max="100"></progress>
+    <p id="status">Ready</p>
+</div>
+
+<script>
+const video = document.getElementById('videoPlayer');
+let mediaSource = new MediaSource();
+video.src = URL.createObjectURL(mediaSource);
+let sourceBuffer;
+let clientPort = 4000 + Math.floor(Math.random() * 1000);
+
+mediaSource.addEventListener('sourceopen', () => {
+    sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+    setupUDPReceiver();
+});
+
+const udpSocket = new (window.dgram || chrome.sockets.udp).create({}, (info) => {
+    window.socketId = info.socketId;
+    (window.dgram || chrome.sockets.udp).bind(window.socketId, "0.0.0.0", clientPort, () => {
+        console.log("UDP listening on port " + clientPort);
+    });
+});
+
+// Simple fallback using WebSocket to simulate UDP chunks (for browser compatibility)
+let chunks = [];
+function setupUDPReceiver() {
+    const ws = new WebSocket("ws://localhost:5000"); // We'll make a simple bridge if needed
+    // Actually we will use fetch streaming simulation for reliability
+}
+
+async function startStreaming() {
+    const filename = document.getElementById('fileSelect').value;
+    document.getElementById('status').textContent = "Requesting stream...";
+
+    const response = await fetch('/request_stream', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({filename: filename, port: clientPort})
+    });
+
+    // Now receive via a streaming endpoint (more browser friendly)
+    const streamResponse = await fetch(`/stream/${filename}`);
+    const reader = streamResponse.body.getReader();
+    let received = 0;
+
+    while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        if (!sourceBuffer.updating && value) {
+            sourceBuffer.appendBuffer(value);
+            received += value.length;
+            document.getElementById('progress').value = (received / 5000000) * 100; // approx
+        }
+    }
+    mediaSource.endOfStream();
+}
+</script>
+</body>
+</html>
